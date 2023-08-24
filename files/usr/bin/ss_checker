@@ -1,0 +1,114 @@
+#!/usr/bin/env lua
+
+--[[
+	Shadowsocks checker for OpenWrt.
+
+	Dependences:
+		lua
+		luci-lib-nixio
+
+	(с) 2023 gSpot (https://github.com/gSpotx2f/ss_checker)
+--]]
+
+local nixio	           = require("nixio")
+
+local addr_port_regexp = "(.+):(%d%d?%d?%d?%d?)"
+local serv_regexp      = "^" .. addr_port_regexp
+local url_regexp       = "^ss://(.+)@" .. addr_port_regexp
+
+local function parseInputString(url)
+	local cstr, server, server_port, method, password
+	cstr, server, server_port = url:match(url_regexp)
+	if cstr then
+		method, password = nixio.bin.b64decode(cstr):match("^(.+):(.+)")
+	else
+		server, server_port = url:match(serv_regexp)
+	end
+	return { server = server or "", server_port = server_port or "",
+		method = method or "", password = password or "" }
+end
+
+local function print_output(r, t)
+	if r == 0 then
+		print(string.format("\27[1;32mOK.\27[m <%s:%d> is available.",
+			t.server, t.server_port))
+	else
+		print(string.format("\27[1;31mFAILED.\27[m <%s:%d> is unavailable.",
+			t.server, t.server_port))
+	end
+	print(string.format("server: %s\nserver_port: %s\nmethod: %s\npassword: %s",
+		t.server, t.server_port, t.method, t.password))
+end
+
+local function print_output_quiet(r, t)
+	if r == 0 then
+		print(string.format("server=%s server_port=%s method=%s password=%s",
+			t.server, t.server_port, t.method, t.password))
+	end
+end
+
+local function TCPConnectionToHost(host, port, timeout, iface)
+	local ret_code  = 4
+	local addr_info = nixio.getaddrinfo(host, "any")
+	if addr_info then
+		local family = addr_info[1].family
+		if family then
+			local socket = nixio.socket(family, "stream")
+			if timeout then
+				socket:setopt("socket", "sndtimeo", timeout)
+				socket:setopt("socket", "rcvtimeo", timeout)
+			end
+			if iface then
+				socket:setopt("socket", "bindtodevice", iface)
+			end
+			local success = socket:connect(host, port)
+			socket:close()
+			ret_code = success and 0 or 4
+		end
+	end
+	return ret_code
+end
+
+local function main(url, quiet)
+	local r = 4
+	local t = parseInputString(url)
+	if t.server and t.server_port then
+		if not quiet then
+			print("Server check...")
+		end
+		r = TCPConnectionToHost(t.server, t.server_port, 5)
+		if quiet then
+			print_output_quiet(r, t)
+		else
+			print_output(r, t)
+		end
+	end
+	return r
+end
+
+if #arg > 0 then
+	if arg[1]:match(serv_regexp) or arg[1]:match(url_regexp) then
+		os.exit(main(arg[1]))
+	elseif arg[1] == "-" then
+		local r = 4
+		while true do
+			local line = io.stdin:read("*l")
+			if not line then
+				break
+			end
+			if line:match(serv_regexp) or line:match(url_regexp) then
+				if main(line, true) == 0 then
+					r = 0
+				end
+			end
+		end
+		os.exit(r)
+	else
+		io.stderr:write("Error! Invalid input string.\n")
+	end
+else
+	io.stderr:write(
+		string.format("Usage: %s <ss:// URL> | <address:port> | -\n", arg[0]))
+end
+
+os.exit(2)
