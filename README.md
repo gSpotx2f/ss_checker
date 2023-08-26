@@ -1,7 +1,7 @@
 # Shadowsocks checker for OpenWrt.
 Checking the availability of the Shadowsocks server.
 
-**Dependences:** lua, luci-lib-nixio.
+**Dependences:** lua, luci-lib-nixio or luasocket.
 
 ## Installation notes
 
