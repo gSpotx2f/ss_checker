@@ -5,27 +5,28 @@
 
 	Dependences:
 		lua
-		luci-lib-nixio
+		nixio or luasocket
 
 	(с) 2023 gSpot (https://github.com/gSpotx2f/ss_checker)
 --]]
-
-local nixio	           = require("nixio")
 
 local addr_port_regexp = "(.+):(%d%d?%d?%d?%d?)"
 local serv_regexp      = "^" .. addr_port_regexp
 local url_regexp       = "^ss://(.+)@" .. addr_port_regexp
 
-local function parseInputString(url)
-	local cstr, server, server_port, method, password
-	cstr, server, server_port = url:match(url_regexp)
-	if cstr then
-		method, password = nixio.bin.b64decode(cstr):match("^(.+):(.+)")
-	else
-		server, server_port = url:match(serv_regexp)
-	end
-	return { server = server or "", server_port = server_port or "",
-		method = method or "", password = password or "" }
+local function prequire(package)
+	local ret, pkg = pcall(require, package)
+	return ret and pkg
+end
+
+local socket, mime
+local nixio = prequire("nixio")
+if not nixio then
+	socket = prequire("socket")
+	mime   = prequire("mime")
+end
+if not nixio and not socket then
+	error("You need to install nixio or luasocket...")
 end
 
 local function print_output(r, t)
@@ -47,7 +48,7 @@ local function print_output_quiet(r, t)
 	end
 end
 
-local function TCPConnectionToHost(host, port, timeout, iface)
+local function TCPConnectionToHostNixio(host, port, timeout, iface)
 	local ret_code  = 4
 	local addr_info = nixio.getaddrinfo(host, "any")
 	if addr_info then
@@ -67,6 +68,31 @@ local function TCPConnectionToHost(host, port, timeout, iface)
 		end
 	end
 	return ret_code
+end
+
+local function TCPConnectionToHostSocket(host, port, timeout)
+	local conn = socket.tcp()
+	if timeout then
+		conn:settimeout(timeout)
+	end
+	local success, err_msg = conn:connect(host, port)
+	conn:close()
+	return success and 0 or 4
+end
+
+local TCPConnectionToHost = nixio and TCPConnectionToHostNixio or TCPConnectionToHostSocket
+local unbase64 = nixio and nixio.bin.b64decode or mime.unb64
+
+local function parseInputString(url)
+	local cstr, server, server_port, method, password
+	cstr, server, server_port = url:match(url_regexp)
+	if cstr then
+		method, password = unbase64(cstr):match("^(.+):(.+)")
+	else
+		server, server_port = url:match(serv_regexp)
+	end
+	return { server = server or "", server_port = server_port or "",
+		method = method or "", password = password or "" }
 end
 
 local function main(url, quiet)

@@ -6,9 +6,9 @@ Checking the availability of the Shadowsocks server.
 ## Installation notes
 
     opkg update
-    wget --no-check-certificate -O /tmp/ss_checker_1.0-0_all.ipk https://github.com/gSpotx2f/packages-openwrt/raw/master/current/ss_checker_1.0-0_all.ipk
-    opkg install /tmp/ss_checker_1.0-0_all.ipk
-    rm /tmp/ss_checker_1.0-0_all.ipk
+    wget --no-check-certificate -O /tmp/ss_checker_1.1-0_all.ipk https://github.com/gSpotx2f/packages-openwrt/raw/master/current/ss_checker_1.1-0_all.ipk
+    opkg install /tmp/ss_checker_1.1-0_all.ipk
+    rm /tmp/ss_checker_1.1-0_all.ipk
 
 ## Usage:
 
