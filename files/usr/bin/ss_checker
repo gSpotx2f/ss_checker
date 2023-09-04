@@ -60,9 +60,13 @@ local function TCPConnectionToHostNixio(host, port, timeout, iface)
 				socket:setopt("socket", "rcvtimeo", timeout)
 			end
 			if iface then
-				socket:setopt("socket", "bindtodevice", iface)
+				if not socket:setopt("socket", "bindtodevice", iface) then
+					socket:close()
+					return ret_code
+				end
 			end
 			local success = socket:connect(host, port)
+			socket:shutdown("rdwr")
 			socket:close()
 			ret_code = success and 0 or 4
 		end
@@ -76,6 +80,7 @@ local function TCPConnectionToHostSocket(host, port, timeout)
 		conn:settimeout(timeout)
 	end
 	local success, err_msg = conn:connect(host, port)
+	conn:shutdown("both")
 	conn:close()
 	return success and 0 or 4
 end

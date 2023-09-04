@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ss_checker
 PKG_VERSION:=1.1
-PKG_RELEASE:=0
+PKG_RELEASE:=1
 PKG_MAINTAINER:=gSpot <https://github.com/gSpotx2f/ss_checker>
 
 include $(INCLUDE_DIR)/package.mk
